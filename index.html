@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>POC: Dashboard de Criminalidade - PE</title>
+    <title>POC: Dashboard do Observatório - PE</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
@@ -22,29 +22,31 @@
                     <div id="chart-linha" class="chart-container"></div>
                 </div>
             </div>
+            
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="card p-3">
                     <div id="chart-barra" class="chart-container"></div>
                 </div>
             </div>
+            
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="card p-3">
                     <div id="chart-pizza" class="chart-container"></div>
                 </div>
             </div>
-        </div>
 
-        <div class="row">
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="card p-3">
                     <div id="chart-donut" class="chart-container"></div>
                 </div>
             </div>
+            
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="card p-3">
                     <div id="chart-heatmap" class="chart-container"></div>
                 </div>
             </div>
+            
             <div class="col-12 col-sm-6 col-lg-4">
                 <div class="card p-3">
                     <div id="chart-scatter" class="chart-container"></div>
@@ -53,17 +55,74 @@
         </div>
     </div>
 
+    <div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalChartTitle">Visualização Expandida</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="chart-modal-container" style="width: 100%; height: 550px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
 
     <script>
-        // Array para guardar instâncias dos gráficos e facilitar o resize
         const charts = [];
+        let modalChart = null;
+        
+        // Ícone SVG customizado representando a ação de maximizar/expandir tela
+        const iconExpandir = 'path://M16 0H2a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2zM5.854 4.854a.5.5 0 1 1-.708-.708l3.5-3.5a.5.5 0 0 1 .708 0l3.5 3.5a.5.5 0 0 1-.708.708L9.5 2.207V15.5H10.5a.5.5 0 0 1 0 1h-3a.5.5 0 0 1 0-1H8.5V2.207L5.854 4.854z';
+
+        // Função Genérica para gerenciar a abertura e sincronização do gráfico clonado no Modal
+        function abrirModalFoco(titulo, graficoOriginal) {
+            document.getElementById('modalChartTitle').innerText = titulo;
+            
+            const meuModal = new bootstrap.Modal(document.getElementById('chartModal'));
+            meuModal.show();
+
+            document.getElementById('chartModal').addEventListener('shown.bs.modal', function () {
+                if (modalChart) {
+                    modalChart.dispose();
+                }
+                
+                modalChart = echarts.init(document.getElementById('chart-modal-container'));
+                
+                // Extrai as opções atuais do gráfico clicado e repassa ao modal
+                const opcoes = graficoOriginal.getOption();
+                
+                // Pequeno ajuste estético na pizza/donut dentro do modal para aproveitar a tela maior
+                if (opcoes.series && opcoes.series[0] && (opcoes.series[0].type === 'pie')) {
+                    opcoes.series[0].center = ['50%', '50%'];
+                    opcoes.series[0].radius = '70%';
+                }
+                
+                modalChart.setOption(opcoes);
+                modalChart.resize();
+            }, { once: true });
+        }
+
 
         // --- 1. LINHA: Evolução de Crimes por Região ---
         const chartLinha = echarts.init(document.getElementById('chart-linha'));
         chartLinha.setOption({
             title: { text: 'Evolução Mensal (CVLI)' },
             tooltip: { trigger: 'axis' },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Evolução Mensal (CVLI)', chartLinha); }
+                    }
+                }
+            },
             legend: { data: ['RMR', 'Agreste', 'Sertão', 'Zona da Mata'], bottom: 0 },
             xAxis: { type: 'category', data: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun'] },
             yAxis: { type: 'value' },
@@ -76,13 +135,24 @@
         });
         charts.push(chartLinha);
 
-        // --- 2. BARRA: Ocorrências por Município (Teste de Sobrecarga de Legenda) ---
+
+        // --- 2. BARRA: Ocorrências por Município ---
         const chartBarra = echarts.init(document.getElementById('chart-barra'));
         chartBarra.setOption({
-            title: { text: 'Crimes de Proporção por Cidade' },
+            title: { text: 'Crimes por Cidade' },
             tooltip: { trigger: 'item' },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Crimes de Proporção por Cidade', chartBarra); }
+                    }
+                }
+            },
             legend: { 
-                type: 'scroll', // Resolve o problema de muitas categorias!
+                type: 'scroll',
                 orient: 'horizontal',
                 bottom: 0
             },
@@ -97,104 +167,118 @@
         });
         charts.push(chartBarra);
 
-        // --- 3. PIZZA: Ocorrências por Estado (Teste de Volumetria com 27 Categorias) ---
+
+        // --- 3. PIZZA: Ocorrências por Estado ---
         const chartPizza = echarts.init(document.getElementById('chart-pizza'));
         chartPizza.setOption({
             title: { 
-                text: 'Distribuição de Ocorrências por Estado', 
+                text: 'Distribuição por Estado', 
                 left: 'center',
                 textStyle: { fontSize: 16 }
             },
             tooltip: { 
                 trigger: 'item',
-                formatter: '{b}: {c} ({d}%)' // Mostra o nome, valor e a porcentagem calculada automaticamente
+                formatter: '{b}: {c} ({d}%)'
+            },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Distribuição de Ocorrências por Estado', chartPizza); }
+                    }
+                }
             },
             legend: { 
-                type: 'scroll',       // Cria as setas de paginação automática
-                orient: 'horizontal',   // Alinha a lista verticalmente
-                left: 'center',         // Posiciona a legenda do lado esquerdo
-                bottom: '0',        // Centraliza verticalmente
-                pageButtonPosition: 'end' // Coloca os botões de paginação no fim da lista
+                type: 'scroll',
+                orient: 'horizontal',
+                left: 'center',
+                bottom: '0',
+                pageButtonPosition: 'end'
             },
             series: [{
                 name: 'Estados',
                 type: 'pie',
-                radius: '65%',        // Tamanho do raio da pizza
-                center: ['50%', '50%'], // Desloca o centro da pizza um pouco para a direita para não chocar com a legenda
+                radius: '55%',
+                center: ['50%', '42%'], // Mantém elevado para dar espaço à legenda horizontal
                 data: [
-                    { value: 120, name: 'Acre (AC)' },
-                    { value: 250, name: 'Alagoas (AL)' },
-                    { value: 180, name: 'Amapá (AP)' },
-                    { value: 310, name: 'Amazonas (AM)' },
-                    { value: 850, name: 'Bahia (BA)' },
-                    { value: 520, name: 'Ceará (CE)' },
-                    { value: 410, name: 'Distrito Federal (DF)' },
-                    { value: 390, name: 'Espírito Santo (ES)' },
-                    { value: 680, name: 'Goiás (GO)' },
-                    { value: 450, name: 'Maranhão (MA)' },
-                    { value: 340, name: 'Mato Grosso (MT)' },
-                    { value: 290, name: 'Mato Grosso do Sul (MS)' },
-                    { value: 980, name: 'Minas Gerais (MG)' },
-                    { value: 510, name: 'Pará (PA)' },
-                    { value: 230, name: 'Paraíba (PB)' },
-                    { value: 740, name: 'Paraná (PR)' },
-                    { value: 610, name: 'Pernambuco (PE)' },
-                    { value: 280, name: 'Piauí (PI)' },
-                    { value: 920, name: 'Rio de Janeiro (RJ)' },
-                    { value: 310, name: 'Rio Grande do Norte (RN)' },
-                    { value: 790, name: 'Rio Grande do Sul (RS)' },
-                    { value: 210, name: 'Rondônia (RO)' },
-                    { value: 140, name: 'Roraima (RR)' },
-                    { value: 630, name: 'Santa Catarina (SC)' },
-                    { value: 1500, name: 'São Paulo (SP)' },
-                    { value: 190, name: 'Sergipe (SE)' },
+                    { value: 120, name: 'Acre (AC)' }, { value: 250, name: 'Alagoas (AL)' },
+                    { value: 180, name: 'Amapá (AP)' }, { value: 310, name: 'Amazonas (AM)' },
+                    { value: 850, name: 'Bahia (BA)' }, { value: 520, name: 'Ceará (CE)' },
+                    { value: 410, name: 'Distrito Federal (DF)' }, { value: 390, name: 'Espírito Santo (ES)' },
+                    { value: 680, name: 'Goiás (GO)' }, { value: 450, name: 'Maranhão (MA)' },
+                    { value: 340, name: 'Mato Grosso (MT)' }, { value: 290, name: 'Mato Grosso do Sul (MS)' },
+                    { value: 980, name: 'Minas Gerais (MG)' }, { value: 510, name: 'Pará (PA)' },
+                    { value: 230, name: 'Paraíba (PB)' }, { value: 740, name: 'Paraná (PR)' },
+                    { value: 610, name: 'Pernambuco (PE)' }, { value: 280, name: 'Piauí (PI)' },
+                    { value: 920, name: 'Rio de Janeiro (RJ)' }, { value: 310, name: 'Rio Grande do Norte (RN)' },
+                    { value: 790, name: 'Rio Grande do Sul (RS)' }, { value: 210, name: 'Rondônia (RO)' },
+                    { value: 140, name: 'Roraima (RR)' }, { value: 630, name: 'Santa Catarina (SC)' },
+                    { value: 1500, name: 'São Paulo (SP)' }, { value: 190, name: 'Sergipe (SE)' },
                     { value: 220, name: 'Tocantins (TO)' }
                 ],
                 emphasis: {
-                    itemStyle: {
-                        shadowBlur: 10,
-                        shadowOffsetX: 0,
-                        shadowColor: 'rgba(0, 0, 0, 0.5)'
-                    }
+                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
                 }
             }]
         });
         charts.push(chartPizza);
 
+
         // --- 4. DONUT: Perfil de Faixa Etária ---
         const chartDonut = echarts.init(document.getElementById('chart-donut'));
         chartDonut.setOption({
-            title: { text: 'Perfil das Vítimas (Faixa Etária)', left: 'center' },
+            title: { text: 'Perfil das Vítimas', left: 'center' },
             tooltip: { trigger: 'item' },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Perfil das Vítimas (Faixa Etária)', chartDonut); }
+                    }
+                }
+            },
             legend: { bottom: '0', type: 'scroll', orient: 'horizontal', left: 'center'},
             series: [{
                 name: 'Faixa Etária',
                 type: 'pie',
-                radius: ['40%', '70%'],
+                radius: ['40%', '65%'],
+                center: ['50%', '45%'],
                 avoidLabelOverlap: false,
                 label: { show: false },
                 data: [
-                    { value: 40, name: '0-17 anos' },
-                    { value: 350, name: '18-24 anos' },
-                    { value: 480, name: '25-34 anos' },
-                    { value: 240, name: '35-59 anos' },
+                    { value: 40, name: '0-17 anos' }, { value: 350, name: '18-24 anos' },
+                    { value: 480, name: '25-34 anos' }, { value: 240, name: '35-59 anos' },
                     { value: 90, name: '60 anos ou mais' }
                 ]
             }]
         });
         charts.push(chartDonut);
 
+
         // --- 5. HEATMAP: Ocorrências por Horário e Dia ---
         const chartHeatmap = echarts.init(document.getElementById('chart-heatmap'));
         const hours = ['00h', '04h', '08h', '12h', '16h', '20h'];
         const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-        // Dados fictícios preenchidos [Dia, Hora, Intensidade]
         const dataHeatmap = [[0,0,5],[0,1,1],[0,2,0],[0,3,8],[0,4,12],[0,5,30],[1,0,3],[1,1,1],[1,2,5],[1,3,10],[1,4,15],[1,5,20],[5,4,45],[5,5,55],[6,5,60]];
         
         chartHeatmap.setOption({
             title: { text: 'Manchas de Calor (Dia x Hora)' },
             tooltip: { position: 'top' },
-            grid: { height: '60%', top: '15%' },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Manchas de Calor (Dia x Hora)', chartHeatmap); }
+                    }
+                }
+            },
+            grid: { height: '55%', top: '20%' },
             xAxis: { type: 'category', data: hours, splitArea: { show: true } },
             yAxis: { type: 'category', data: days, splitArea: { show: true } },
             visualMap: { min: 0, max: 60, calculus: 'continuous', orient: 'horizontal', left: 'center', bottom: '0%' },
@@ -202,11 +286,22 @@
         });
         charts.push(chartHeatmap);
 
-        // --- 6. SCATTER: Relação Habitantes vs Ocorrências ---
+
+        // --- 6. SCATTER: Relação Efetivo Policial vs Ocorrências ---
         const chartScatter = echarts.init(document.getElementById('chart-scatter'));
         chartScatter.setOption({
-            title: { text: 'Efetivo Policial vs Ocorrências (Municípios)' },
+            title: { text: 'Efetivo vs Ocorrências' },
             tooltip: { trigger: 'item', formatter: '{a}: ({c})' },
+            toolbox: {
+                feature: {
+                    myFull: {
+                        show: true,
+                        title: 'Expandir Gráfico',
+                        icon: iconExpandir,
+                        onclick: function() { abrirModalFoco('Efetivo Policial vs Ocorrências (Municípios)', chartScatter); }
+                    }
+                }
+            },
             xAxis: { name: 'Efetivo', splitLine: { lineStyle: { type: 'dashed' } } },
             yAxis: { name: 'Crimes', splitLine: { lineStyle: { type: 'dashed' } } },
             series: [{
@@ -220,11 +315,11 @@
         });
         charts.push(chartScatter);
 
-        // --- RESPONSIVIDADE (O Segredo do ECharts) ---
+
+        // --- SISTEMA GLOBAL DE RESPONSIVIDADE ---
         window.addEventListener('resize', function() {
-            charts.forEach(chart => {
-                chart.resize();
-            });
+            charts.forEach(chart => { chart.resize(); });
+            if (modalChart) { modalChart.resize(); }
         });
     </script>
 </body>
